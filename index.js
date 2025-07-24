@@ -4,7 +4,7 @@ const request = require('request')
 const app = express()
 app.use(express.json())
 
-const mchId = '1648829423' // 这里商户号需要替换成自己的
+const mchId = '1723253552' // 这里商户号需要替换成自己的
 // 也可以在部署时设定环境变量【mch_id】为商户号
 
 app.post('/unifiedOrder', async function (req, res) {
@@ -12,7 +12,7 @@ app.post('/unifiedOrder', async function (req, res) {
   const openid = req.headers['x-wx-openid'] // 小程序直接callcontainer请求会存在
   // 如果是业务异步流程需自己替换openid来源
   const { text, fee } = req.body
-
+  console.log("Pre-pay Req:", req.body)
   const totalPrice = parseInt(fee)
 
   const payreq = {
