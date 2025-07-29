@@ -74,7 +74,7 @@ app.post('/unifiedOrder', async function (req, res) {
   }
 
   console.log('[unifiedOrder]请求体', payreq)
-  const info = await callpay('unifiedorder', payinfo)
+  const info = await callpay('unifiedorder', payreq)
   console.log('[unifiedOrder]响应体', info)
   res.send(info)
 })
