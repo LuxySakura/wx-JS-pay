@@ -1,11 +1,24 @@
 const express = require('express')
 const request = require('request')
+const crypto = require('crypto')
 
 const app = express()
 app.use(express.json())
 
-const mchId = '1723253552' // 这里商户号需要替换成自己的
-// 也可以在部署时设定环境变量【mch_id】为商户号
+// 创建32位随机字符串
+function generateRandom32String() {
+  // 创建 16 字节（128位）的 Uint8Array，最终转换为 32 位十六进制字符串
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array); // 填充随机值
+
+  // 将字节数组转换为十六进制字符串
+  return Array.from(array, byte =>
+      byte.toString(16).padStart(2, '0')
+  ).join('');
+}
+
+const mchId = process.env.mch_id; // 商户号
+const appId = process.env.app_id; // 小程序appID
 
 app.post('/unifiedOrder', async function (req, res) {
   const ip = req.headers['x-forwarded-for'] // 小程序直接callcontainer请求会存在
@@ -29,75 +42,41 @@ app.post('/unifiedOrder', async function (req, res) {
       path: '/' // 回调的路径
     }
   }
-  console.log('[unifiedOrder]请求体', payreq)
-  const info = await callpay('unifiedorder', payreq)
-  console.log('[unifiedOrder]响应体', info)
-  res.send(info)
-})
 
-app.post('/queryorder', async function (req, res) {
-  const { noid } = req.body
-  const payreq = {
-    out_trade_no: noid, // 自定义订单号
-    sub_mch_id: mchId // 微信支付商户号
-  }
-  console.log('[queryorder]请求体', payreq)
-  const info = await callpay('queryorder', payreq)
-  console.log('[queryorder]响应体', info)
-  res.send(info)
-})
-
-app.post('/closeorder', async function (req, res) {
-  const { noid } = req.body
-  const payreq = {
-    out_trade_no: noid, // 自定义订单号
-    sub_mch_id: mchId // 微信支付商户号
-  }
-  console.log('[closeorder]请求体', payreq)
-  const info = await callpay('closeorder', payreq)
-  console.log('[closeorder]响应体', info)
-  res.send(info)
-})
-
-app.post('/refund', async function (req, res) {
-  const { text, noid, fee } = req.body
-  const payreq = {
-    body: text, // 订单描述
-    out_trade_no: noid, // 自定义订单号
-    out_refund_no: `R_${noid}`, // 自定义退款单号
-    sub_mch_id: mchId, // 微信支付商户号
-    total_fee: fee, // 订单金额，单位：分
-    refund_fee: fee, // 退款金额，单位：分
-    refund_desc: `${text}_退款`, // 订单退款描述
-    env_id: req.headers['x-wx-env'], // 接收回调的环境ID
-    callback_type: 2, // 云托管服务接收回调，填2
-    container: {
-      service: req.headers['x-wx-service'], // 回调的服务名称
-      path: '/' // 回调的路径
+  const payinfo = {
+    appid : appId, // 小程序id
+    mchid : mchId,
+    description : text,
+    out_trade_no : generateOrderId(), // 商户系统内部订单号
+    attach : "自定义数据说明",
+    notify_url : "https://www.weixin.qq.com/wxpay/pay.php", // 商户接收支付成功回调通知的地址
+    "goods_tag" : "WXG", // 订单优惠标记
+    amount : {
+      total : totalPrice,
+      currency : "CNY"
+    },
+    payer : {
+      openid : openid
+    },
+    "detail" : {
+      "cost_price" : 608800,
+      "invoice_id" : "微信123",
+      "goods_detail" : [
+        {
+          "merchant_goods_id" : "1246464644",
+          "wechatpay_goods_id" : "1001",
+          "goods_name" : "iPhoneX 256G",
+          "quantity" : 1,
+          "unit_price" : 528800
+        }
+      ]
     }
   }
-  console.log('[refund]请求体', payreq)
-  const info = await callpay('refund', payreq)
-  console.log('[refund]响应体', info)
-  res.send(info)
-})
 
-app.post('/queryrefund', async function (req, res) {
-  const { noid } = req.body
-  const payreq = {
-    out_trade_no: noid, // 自定义订单号
-    sub_mch_id: mchId // 微信支付商户号
-  }
-  console.log('[queryrefund]请求体', payreq)
-  const info = await callpay('queryrefund', payreq)
-  console.log('[queryrefund]响应体', info)
+  console.log('[unifiedOrder]请求体', payreq)
+  const info = await callpay('unifiedorder', payinfo)
+  console.log('[unifiedOrder]响应体', info)
   res.send(info)
-})
-
-app.all('/', function (req, res) {
-  console.log('回调请求头', req.headers)
-  console.log('回调收到内容', req.body || req.query)
-  res.send('success')
 })
 
 app.listen(80, function () {
@@ -105,14 +84,23 @@ app.listen(80, function () {
 })
 
 function callpay (action, paybody) {
+  const method = 'POST' // HTTP对应的方法
+
+  const timestamp = `${Date.now()}` // 当前时间戳
+  const randomStr = generateRandom32String(); // 随机32位字符串
+
+  // 将paybody转换成一行
+  const body = JSON.stringify(paybody)
+
   return new Promise((resolve, reject) => {
     request({
-      url: `http://api.weixin.qq.com/_/pay/${action}`,
-      method: 'POST',
+      url: "http://api.weixin.qq.com/_/pay/unifiedOrder",
+      method: method,
       headers: {
-        'content-type': 'application/json'
+        'Accpet': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(paybody)
+      body: body
     }, function (error, res) {
       if (error) {
         resolve(error)
