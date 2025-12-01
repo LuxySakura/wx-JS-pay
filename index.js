@@ -27,7 +27,7 @@ app.post('/unifiedOrder', async function (req, res) {
   const { text, fee } = req.body
   console.log("Pre-pay Req:", req.body)
   const totalPrice = parseInt(fee)
-  const final = n => Math.floor(n / 100) * 100;
+  const final = 100 + Math.floor(totalPrice / 100) * 100
   console.log("Final Price After:", final)
 
   const payreq = {
