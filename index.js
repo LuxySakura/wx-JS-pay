@@ -27,12 +27,14 @@ app.post('/unifiedOrder', async function (req, res) {
   const { text, fee } = req.body
   console.log("Pre-pay Req:", req.body)
   const totalPrice = parseInt(fee)
+  const final = n => Math.floor(n / 100) * 100;
+  console.log("Final Price After:", final)
 
   const payreq = {
     body: text, // 订单描述
     out_trade_no: generateOrderId(), // 自定义订单号
     sub_mch_id: mchId, // 微信支付商户号
-    total_fee: totalPrice, // 金额，单位：分
+    total_fee: final, // 金额，单位：分
     openid: openid, // 用户唯一身份ID
     spbill_create_ip: ip, // 用户客户端IP地址
     env_id: req.headers['x-wx-env'], // 接收回调的环境ID
